@@ -1,0 +1,6 @@
+# Development environment variables
+# Copy this file to .dev.vars (which is gitignored)
+# and set your actual values
+
+JWT_SECRET=your-secret-key-here-change-in-production
+ENVIRONMENT=development

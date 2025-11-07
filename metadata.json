@@ -1,0 +1,5 @@
+{
+  "name": "VaultCloud",
+  "description": "A modern, secure vault for users to store & manage passwords and notes. This application provides a clean, responsive interface with a focus on security and user experience, featuring a dark mode by default.",
+  "requestFramePermissions": []
+}
