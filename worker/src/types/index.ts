@@ -17,6 +17,9 @@ export interface User {
     two_factor_secret?: string;
     pgp_public_key?: string;
     pgp_key_fingerprint?: string;
+    must_change_password?: number;
+    email_changed_at?: number;
+    original_email?: string;
 }
 
 export interface VaultEntry {

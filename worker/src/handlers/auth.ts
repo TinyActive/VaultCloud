@@ -75,7 +75,11 @@ export async function handleLogin(request: Request, env: Env): Promise<Response>
         return Response.json<ApiResponse>({
             success: true,
             data: {
-                user: userData,
+                user: {
+                    ...userData,
+                    must_change_password: user.must_change_password || 0,
+                    email_changed_at: user.email_changed_at || null,
+                },
                 token: sessionToken,
                 expiresAt,
             },
@@ -564,5 +568,160 @@ export async function handleVerifyEmail(request: Request, env: Env): Promise<Res
             success: false,
             error: 'Internal server error',
         } as ApiResponse, { status: 500 });
+    }
+}
+
+/**
+ * Change user password
+ */
+export async function handleChangePassword(request: Request, env: Env, userId: string): Promise<Response> {
+    try {
+        const { currentPassword, newPassword } = await request.json() as { 
+            currentPassword: string; 
+            newPassword: string; 
+        };
+
+        if (!currentPassword || !newPassword) {
+            return Response.json<ApiResponse>({
+                success: false,
+                error: 'Current password and new password are required',
+            }, { status: 400 });
+        }
+
+        if (newPassword.length < 8) {
+            return Response.json<ApiResponse>({
+                success: false,
+                error: 'New password must be at least 8 characters long',
+            }, { status: 400 });
+        }
+
+        // Get user from database
+        const user = await env.DB.prepare(
+            'SELECT * FROM users WHERE id = ?'
+        ).bind(userId).first<User>();
+
+        if (!user) {
+            return Response.json<ApiResponse>({
+                success: false,
+                error: 'User not found',
+            }, { status: 404 });
+        }
+
+        // Verify current password
+        if (!user.password_hash || !(await verifyPassword(currentPassword, user.password_hash))) {
+            return Response.json<ApiResponse>({
+                success: false,
+                error: 'Current password is incorrect',
+            }, { status: 401 });
+        }
+
+        // Hash new password
+        const newPasswordHash = await hashPassword(newPassword);
+
+        // Update password and clear must_change_password flag
+        await env.DB.prepare(
+            'UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?'
+        ).bind(newPasswordHash, userId).run();
+
+        return Response.json<ApiResponse>({
+            success: true,
+            data: {
+                message: 'Password changed successfully',
+            },
+        });
+    } catch (error) {
+        console.error('Change password error:', error);
+        return Response.json<ApiResponse>({
+            success: false,
+            error: 'Internal server error',
+        }, { status: 500 });
+    }
+}
+
+/**
+ * Change user email (only once after first login)
+ */
+export async function handleChangeEmail(request: Request, env: Env, userId: string): Promise<Response> {
+    try {
+        const { newEmail, password } = await request.json() as { 
+            newEmail: string; 
+            password: string; 
+        };
+
+        if (!newEmail || !password) {
+            return Response.json<ApiResponse>({
+                success: false,
+                error: 'New email and password are required',
+            }, { status: 400 });
+        }
+
+        if (!isValidEmail(newEmail)) {
+            return Response.json<ApiResponse>({
+                success: false,
+                error: 'Invalid email format',
+            }, { status: 400 });
+        }
+
+        // Get user from database
+        const user = await env.DB.prepare(
+            'SELECT * FROM users WHERE id = ?'
+        ).bind(userId).first<User & { email_changed_at?: number; original_email?: string }>();
+
+        if (!user) {
+            return Response.json<ApiResponse>({
+                success: false,
+                error: 'User not found',
+            }, { status: 404 });
+        }
+
+        // Check if email was already changed
+        if (user.email_changed_at) {
+            return Response.json<ApiResponse>({
+                success: false,
+                error: 'Email can only be changed once. Your email was already changed.',
+            }, { status: 403 });
+        }
+
+        // Verify password
+        if (!user.password_hash || !(await verifyPassword(password, user.password_hash))) {
+            return Response.json<ApiResponse>({
+                success: false,
+                error: 'Incorrect password',
+            }, { status: 401 });
+        }
+
+        // Check if new email is already in use
+        const existingUser = await env.DB.prepare(
+            'SELECT id FROM users WHERE email = ? AND id != ?'
+        ).bind(newEmail, userId).first();
+
+        if (existingUser) {
+            return Response.json<ApiResponse>({
+                success: false,
+                error: 'Email is already in use',
+            }, { status: 409 });
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        const originalEmail = user.original_email || user.email;
+
+        // Update email and set email_changed_at
+        await env.DB.prepare(
+            'UPDATE users SET email = ?, email_changed_at = ?, original_email = ? WHERE id = ?'
+        ).bind(newEmail, now, originalEmail, userId).run();
+
+        return Response.json<ApiResponse>({
+            success: true,
+            data: {
+                message: 'Email changed successfully. This is a one-time change.',
+                newEmail,
+            },
+        });
+    } catch (error) {
+        console.error('Change email error:', error);
+        return Response.json<ApiResponse>({
+            success: false,
+            error: 'Internal server error',
+        }, { status: 500 });
     }
 }

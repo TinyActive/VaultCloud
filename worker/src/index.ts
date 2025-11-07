@@ -10,6 +10,8 @@ import {
     handleSavePgpPublicKey,
     handleGetPgpPublicKey,
     handleVerifyEmail,
+    handleChangePassword,
+    handleChangeEmail,
 } from './handlers/auth';
 import {
     handleGetEntries,
@@ -89,6 +91,14 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         if (path === '/api/auth/me' && method === 'GET') {
             const auth = await requireAuth(request, env);
             return await handleGetMe(request, env, auth.user.id);
+        }
+        if (path === '/api/auth/change-password' && method === 'POST') {
+            const auth = await requireAuth(request, env);
+            return await handleChangePassword(request, env, auth.user.id);
+        }
+        if (path === '/api/auth/change-email' && method === 'POST') {
+            const auth = await requireAuth(request, env);
+            return await handleChangeEmail(request, env, auth.user.id);
         }
 
         // PGP key routes

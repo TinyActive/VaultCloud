@@ -127,6 +127,20 @@ class ApiService {
         return await this.request<any>('/auth/me');
     }
 
+    async changePassword(currentPassword: string, newPassword: string) {
+        return await this.request<{ message: string }>('/auth/change-password', {
+            method: 'POST',
+            body: JSON.stringify({ currentPassword, newPassword }),
+        });
+    }
+
+    async changeEmail(newEmail: string, password: string) {
+        return await this.request<{ message: string; newEmail: string }>('/auth/change-email', {
+            method: 'POST',
+            body: JSON.stringify({ newEmail, password }),
+        });
+    }
+
     // PGP key endpoints
     async savePgpPublicKey(publicKey: string) {
         return await this.request<any>('/pgp/public-key', {

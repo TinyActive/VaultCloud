@@ -14,8 +14,11 @@ interface SettingsViewProps {
     fidoKeys: FidoKey[];
     isPasswordLoginEnabled: boolean;
     pgpKey: PGPKeySet | null;
+    userEmail: string;
+    emailChangedAt?: number;
     onToggle2FA: () => void;
     onChangePassword: () => void;
+    onChangeEmail: () => void;
     onExport: () => void;
     onImport: () => void;
     onAddFidoKey: () => void;
@@ -26,8 +29,8 @@ interface SettingsViewProps {
 }
 
 const SettingsView: React.FC<SettingsViewProps> = ({ 
-    is2FAEnabled, fidoKeys, isPasswordLoginEnabled, pgpKey, 
-    onToggle2FA, onChangePassword, onExport, onImport, onAddFidoKey, onRemoveFidoKey, onTogglePasswordLogin, onManagePgpKey, onRemovePgpKey 
+    is2FAEnabled, fidoKeys, isPasswordLoginEnabled, pgpKey, userEmail, emailChangedAt,
+    onToggle2FA, onChangePassword, onChangeEmail, onExport, onImport, onAddFidoKey, onRemoveFidoKey, onTogglePasswordLogin, onManagePgpKey, onRemovePgpKey 
 }) => {
     const { theme, setTheme } = useTheme();
     const { t, language, setLanguage } = useI18n();
@@ -41,8 +44,26 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <Card>
                     <CardHeader><CardTitle>{t('profile')}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <Input label={t('emailAddress')} id="email" type="email" defaultValue="user@vaultcloud.dev" disabled />
-                        <Button variant="outline" onClick={onChangePassword}>{t('changeMasterPassword')}</Button>
+                        <div>
+                            <Input 
+                                label={t('emailAddress')} 
+                                id="email" 
+                                type="email" 
+                                defaultValue={userEmail} 
+                                disabled 
+                            />
+                            {emailChangedAt && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {t('emailChangedOn') || 'Email was changed on'}: {new Date(emailChangedAt * 1000).toLocaleDateString()}
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={onChangeEmail}>
+                                {emailChangedAt ? (t('viewEmailChange') || 'View Email Change') : (t('changeEmail') || 'Change Email')}
+                            </Button>
+                            <Button variant="outline" onClick={onChangePassword}>{t('changeMasterPassword')}</Button>
+                        </div>
                     </CardContent>
                 </Card>
                 <Card>

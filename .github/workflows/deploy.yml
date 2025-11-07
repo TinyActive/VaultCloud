@@ -198,6 +198,9 @@ jobs:
           # Migration 003 - Site settings (may fail if already applied)
           npx wrangler d1 execute "$D1_DATABASE_NAME" --file=./worker/src/db/migration_003_site_settings.sql --remote || echo "⚠️ Migration 003 skipped (possibly already applied)"
           
+          # Migration 004 - User profile management (may fail if already applied)
+          npx wrangler d1 execute "$D1_DATABASE_NAME" --file=./worker/src/db/migration_004_user_profile_changes.sql --remote || echo "⚠️ Migration 004 skipped (possibly already applied)"
+          
           echo "✅ Migrations complete"
 
       - name: Seed Database
