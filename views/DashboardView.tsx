@@ -13,6 +13,8 @@ import EntryEditModal from '../components/modals/EntryEditModal';
 import NoteEditModal from '../components/modals/NoteEditModal';
 import ShareModal from '../components/modals/ShareModal';
 import ChangePasswordModal from '../components/modals/ChangePasswordModal';
+import ChangeEmailModal from '../components/modals/ChangeEmailModal';
+import ForceProfileUpdateModal from '../components/modals/ForceProfileUpdateModal';
 import Setup2FAModal from '../components/modals/Setup2FAModal';
 import ImportDataModal from '../components/modals/ImportDataModal';
 import RegisterFidoKeyModal from '../components/modals/RegisterFidoKeyModal';
@@ -30,7 +32,7 @@ interface DashboardViewProps {
 const DashboardView: React.FC<DashboardViewProps> = ({ currentUser }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { logout } = useAuth();
+    const { logout, setCurrentUser } = useAuth();
     
     const [entries, setEntries] = useState<Entry[]>([]);
     const [notes, setNotes] = useState<Note[]>([]);
@@ -46,6 +48,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ currentUser }) => {
     
     // State for Settings page modals
     const [isChangePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
+    const [isChangeEmailModalOpen, setChangeEmailModalOpen] = useState(false);
+    const [showForceProfileUpdate, setShowForceProfileUpdate] = useState(false);
     const [isSetup2FAModalOpen, setSetup2FAModalOpen] = useState(false);
     const [isImportModalOpen, setImportModalOpen] = useState(false);
     const [isRegisterFidoKeyModalOpen, setRegisterFidoKeyModalOpen] = useState(false);
@@ -72,6 +76,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ currentUser }) => {
         const loadData = async () => {
             try {
                 setLoading(true);
+                
+                // Check if user must change password on first login
+                if (currentUser.must_change_password) {
+                    setShowForceProfileUpdate(true);
+                }
                 
                 // Load PGP keys: get public key from server and check for local private key
                 const [serverPublicKeyData, localKeys, fidoKeysData] = await Promise.all([
@@ -704,8 +713,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ currentUser }) => {
                                     fidoKeys={fidoKeys}
                                     isPasswordLoginEnabled={isPasswordLoginEnabled}
                                     pgpKey={pgpKey}
+                                    userEmail={currentUser.email}
+                                    emailChangedAt={currentUser.email_changed_at}
                                     onToggle2FA={handleToggle2FA}
                                     onChangePassword={() => setChangePasswordModalOpen(true)}
+                                    onChangeEmail={() => setChangeEmailModalOpen(true)}
                                     onExport={() => {/* Export functionality */}}
                                     onImport={() => setImportModalOpen(true)}
                                     onAddFidoKey={() => setRegisterFidoKeyModalOpen(true)}
@@ -721,6 +733,27 @@ const DashboardView: React.FC<DashboardViewProps> = ({ currentUser }) => {
             </div>
 
             {/* Modals */}
+            {showForceProfileUpdate && (
+                <ForceProfileUpdateModal
+                    isOpen={showForceProfileUpdate}
+                    onClose={() => {
+                        // Force profile update cannot be dismissed
+                    }}
+                    onComplete={async (newEmail: string) => {
+                        setShowForceProfileUpdate(false);
+                        // Refresh user data
+                        try {
+                            const updatedUser = await apiService.getMe();
+                            setCurrentUser(updatedUser);
+                            showToast('Profile updated successfully!', 'success');
+                        } catch (error) {
+                            console.error('Failed to refresh user data:', error);
+                        }
+                    }}
+                    currentEmail={currentUser.email}
+                />
+            )}
+            
             {isEntryModalOpen && (
                 <EntryEditModal
                     isOpen={isEntryModalOpen}
@@ -752,6 +785,19 @@ const DashboardView: React.FC<DashboardViewProps> = ({ currentUser }) => {
                 <ChangePasswordModal
                     isOpen={isChangePasswordModalOpen}
                     onClose={() => setChangePasswordModalOpen(false)}
+                />
+            )}
+            
+            {isChangeEmailModalOpen && (
+                <ChangeEmailModal
+                    isOpen={isChangeEmailModalOpen}
+                    onClose={() => setChangeEmailModalOpen(false)}
+                    currentEmail={currentUser.email}
+                    hasChangedEmail={!!currentUser.email_changed_at}
+                    onSuccess={() => {
+                        showToast('Email changed successfully!', 'success');
+                        setChangeEmailModalOpen(false);
+                    }}
                 />
             )}
             

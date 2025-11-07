@@ -56,4 +56,7 @@ export type User = {
     role: 'admin' | 'user';
     status: 'active' | 'suspended';
     lastLogin: string;
+    must_change_password?: boolean;
+    email_changed_at?: number;
+    original_email?: string;
 };
