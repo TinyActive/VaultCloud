@@ -14,6 +14,19 @@ dist-ssr
 .dev.vars
 .wrangler
 
+# Secrets and sensitive files
+.secrets-backup.txt
+.secrets-backup*.txt
+.env
+.env.*
+!.env.example
+secrets.txt
+secrets.json
+
+# Database backups
+backup*.sql
+*.backup
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

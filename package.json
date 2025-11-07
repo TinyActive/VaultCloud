@@ -11,7 +11,9 @@
     "worker:deploy": "wrangler deploy worker/src/index.ts",
     "worker:tail": "wrangler tail",
     "db:init": "wrangler d1 execute vaultcloud-db --file=./worker/src/db/schema.sql",
-    "db:seed": "wrangler d1 execute vaultcloud-db --file=./worker/src/db/seed.sql"
+    "db:seed": "wrangler d1 execute vaultcloud-db --file=./worker/src/db/seed.sql",
+    "generate:secrets": "node scripts/generate-secrets.js",
+    "setup:help": "echo 'See DEPLOYMENT.md and SECRETS_SETUP.md for setup instructions'"
   },
   "dependencies": {
     "react": "^19.2.0",
