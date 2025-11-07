@@ -266,6 +266,7 @@ jobs:
           echo "✅ Secrets configured"
 
       - name: Deploy Worker
+        id: deploy-worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -275,10 +276,66 @@ jobs:
 
       - name: Get Worker URL
         id: worker-url
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          WORKER_URL="https://vaultcloud-api.${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.workers.dev"
+          echo "🔍 Getting actual Worker URL..."
+          
+          # Method 1: Get from Cloudflare API
+          WORKER_INFO=$(curl -s -X GET \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/vaultcloud-api" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json")
+          
+          echo "Worker info response:"
+          echo "$WORKER_INFO" | jq '.' || echo "$WORKER_INFO"
+          
+          # Try to get subdomain info
+          SUBDOMAIN_INFO=$(curl -s -X GET \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json")
+          
+          echo "Subdomain info:"
+          echo "$SUBDOMAIN_INFO" | jq '.' || echo "$SUBDOMAIN_INFO"
+          
+          # Extract subdomain
+          SUBDOMAIN=$(echo "$SUBDOMAIN_INFO" | jq -r '.result.subdomain // empty' 2>/dev/null)
+          
+          if [ -n "$SUBDOMAIN" ] && [ "$SUBDOMAIN" != "null" ]; then
+            WORKER_URL="https://vaultcloud-api.$SUBDOMAIN.workers.dev"
+            echo "✅ Constructed Worker URL from subdomain: $WORKER_URL"
+          else
+            # Method 2: Try wrangler deployments
+            echo "⚠️ Subdomain not found via API, trying wrangler..."
+            DEPLOY_LIST=$(npx wrangler deployments list 2>&1 || echo "")
+            
+            if echo "$DEPLOY_LIST" | grep -q "https://"; then
+              WORKER_URL=$(echo "$DEPLOY_LIST" | grep -oP 'https://[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev' | head -n 1)
+              echo "✅ Found Worker URL from deployments: $WORKER_URL"
+            fi
+          fi
+          
+          # Fallback
+          if [ -z "$WORKER_URL" ]; then
+            echo "⚠️ Could not determine Worker URL automatically"
+            echo "Please set VITE_API_URL secret with your actual Worker URL"
+            WORKER_URL="https://vaultcloud-api.steep-morning-8706.workers.dev"
+          fi
+          
           echo "worker_url=$WORKER_URL" >> $GITHUB_OUTPUT
-          echo "🚀 Worker deployed to: $WORKER_URL"
+          echo "🚀 Worker URL: $WORKER_URL"
+          
+          # Save to file for next job
+          echo "$WORKER_URL" > worker_url.txt
+
+      - name: Upload Worker URL
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-url
+          path: worker_url.txt
+          retention-days: 1
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -300,12 +357,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Download Worker URL
+        uses: actions/download-artifact@v4
+        with:
+          name: worker-url
+
       - name: Build frontend
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL || format('https://vaultcloud-api.{0}.workers.dev', secrets.CLOUDFLARE_ACCOUNT_ID) }}
         run: |
           echo "🏗️ Building frontend..."
+          
+          # Get Worker URL from artifact or use secret
+          if [ -f worker_url.txt ]; then
+            WORKER_URL=$(cat worker_url.txt)
+            echo "✅ Using Worker URL from deployment: $WORKER_URL"
+          elif [ -n "${{ secrets.VITE_API_URL }}" ]; then
+            WORKER_URL="${{ secrets.VITE_API_URL }}"
+            echo "✅ Using Worker URL from secret: $WORKER_URL"
+          else
+            echo "⚠️ No Worker URL found, using default"
+            WORKER_URL="https://vaultcloud-api.steep-morning-8706.workers.dev"
+          fi
+          
+          export VITE_API_URL="$WORKER_URL"
           echo "API URL: $VITE_API_URL"
+          
           npm run build
           echo "✅ Build complete"
 
