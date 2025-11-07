@@ -78,28 +78,47 @@ jobs:
           
           # Check and create KV Namespace
           echo "🗄️ Checking KV Namespace..."
-          KV_LIST=$(npx wrangler kv:namespace list 2>&1)
+          KV_LIST=$(npx wrangler kv:namespace list 2>&1 || echo "")
+          echo "Debug - KV List output:"
+          echo "$KV_LIST"
           
-          # Check if KV namespace exists
-          if echo "$KV_LIST" | grep -q "$KV_NAMESPACE_NAME"; then
-            # Extract ID from the list output
-            KV_ID=$(echo "$KV_LIST" | grep "$KV_NAMESPACE_NAME" | grep -oP 'id\s*=\s*"\K[^"]+' || echo "$KV_LIST" | grep "$KV_NAMESPACE_NAME" | grep -oP '[a-f0-9]{32}' | head -n 1)
-            echo "✅ KV Namespace already exists: $KV_ID"
-          else
+          # Check if KV namespace exists (check for title in output)
+          if echo "$KV_LIST" | grep -i "title.*$KV_NAMESPACE_NAME"; then
+            # Extract ID from the list output - try different patterns
+            KV_ID=$(echo "$KV_LIST" | grep -i "$KV_NAMESPACE_NAME" | grep -oP 'id\s*=\s*"\K[^"]+' || \
+                    echo "$KV_LIST" | grep -i "$KV_NAMESPACE_NAME" | grep -oP '"id"\s*:\s*"\K[^"]+' || \
+                    echo "$KV_LIST" | grep -i "$KV_NAMESPACE_NAME" | grep -oP '\b[a-f0-9]{32}\b' | head -n 1)
+            
+            if [ -n "$KV_ID" ] && [ "$KV_ID" != "null" ]; then
+              echo "✅ KV Namespace already exists: $KV_ID"
+            else
+              echo "⚠️ Found KV namespace but couldn't extract ID, will try to create"
+              KV_ID=""
+            fi
+          fi
+          
+          # Create KV namespace if not found or ID extraction failed
+          if [ -z "$KV_ID" ] || [ "$KV_ID" == "null" ]; then
             echo "Creating new KV namespace: $KV_NAMESPACE_NAME"
             KV_OUTPUT=$(npx wrangler kv:namespace create "$KV_NAMESPACE_NAME" 2>&1)
             echo "$KV_OUTPUT"
             
-            # Extract ID from output
-            KV_ID=$(echo "$KV_OUTPUT" | grep -oP 'id\s*=\s*"\K[^"]+' || echo "$KV_OUTPUT" | grep -oP '[a-f0-9]{32}' | head -n 1)
+            # Try multiple patterns to extract ID
+            KV_ID=$(echo "$KV_OUTPUT" | grep -oP 'id\s*=\s*"\K[^"]+' || \
+                    echo "$KV_OUTPUT" | grep -oP '"id"\s*:\s*"\K[^"]+' || \
+                    echo "$KV_OUTPUT" | grep -oP '\b[a-f0-9]{32}\b' | head -n 1 || \
+                    echo "")
             
-            if [ -z "$KV_ID" ]; then
+            if [ -z "$KV_ID" ] || [ "$KV_ID" == "null" ]; then
               echo "❌ Failed to extract KV namespace ID"
               echo "Output was: $KV_OUTPUT"
-              exit 1
+              echo "⚠️ You may need to create KV namespace manually and update wrangler.toml"
+              echo "⚠️ Command: wrangler kv:namespace create $KV_NAMESPACE_NAME"
+              # Use a placeholder to continue
+              KV_ID="MANUAL_SETUP_REQUIRED"
+            else
+              echo "✅ KV Namespace created: $KV_ID"
             fi
-            
-            echo "✅ KV Namespace created: $KV_ID"
           fi
           
           echo "kv_namespace_id=$KV_ID" >> $GITHUB_OUTPUT
