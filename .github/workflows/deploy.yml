@@ -50,32 +50,56 @@ jobs:
           
           # Check and create D1 Database
           echo "📊 Checking D1 Database..."
-          D1_LIST=$(npx wrangler d1 list --json 2>/dev/null || echo "[]")
-          D1_ID=$(echo "$D1_LIST" | jq -r ".[] | select(.name==\"$D1_DATABASE_NAME\") | .uuid" | head -n 1)
+          D1_LIST=$(npx wrangler d1 list 2>&1)
           
-          if [ -z "$D1_ID" ] || [ "$D1_ID" == "null" ]; then
-            echo "Creating new D1 database: $D1_DATABASE_NAME"
-            D1_CREATE=$(npx wrangler d1 create "$D1_DATABASE_NAME" --json)
-            D1_ID=$(echo "$D1_CREATE" | jq -r '.uuid // .database_id // empty')
-            echo "✅ D1 Database created: $D1_ID"
-          else
+          # Check if database exists
+          if echo "$D1_LIST" | grep -q "$D1_DATABASE_NAME"; then
+            # Extract UUID from the list output
+            D1_ID=$(echo "$D1_LIST" | grep "$D1_DATABASE_NAME" | grep -oP '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' | head -n 1)
             echo "✅ D1 Database already exists: $D1_ID"
+          else
+            echo "Creating new D1 database: $D1_DATABASE_NAME"
+            D1_OUTPUT=$(npx wrangler d1 create "$D1_DATABASE_NAME" 2>&1)
+            echo "$D1_OUTPUT"
+            
+            # Extract database_id from output
+            D1_ID=$(echo "$D1_OUTPUT" | grep -oP 'database_id\s*=\s*"\K[^"]+' || echo "$D1_OUTPUT" | grep -oP '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' | head -n 1)
+            
+            if [ -z "$D1_ID" ]; then
+              echo "❌ Failed to extract D1 database ID"
+              echo "Output was: $D1_OUTPUT"
+              exit 1
+            fi
+            
+            echo "✅ D1 Database created: $D1_ID"
           fi
           
           echo "d1_database_id=$D1_ID" >> $GITHUB_OUTPUT
           
           # Check and create KV Namespace
           echo "🗄️ Checking KV Namespace..."
-          KV_LIST=$(npx wrangler kv:namespace list --json 2>/dev/null || echo "[]")
-          KV_ID=$(echo "$KV_LIST" | jq -r ".[] | select(.title==\"$KV_NAMESPACE_NAME\") | .id" | head -n 1)
+          KV_LIST=$(npx wrangler kv:namespace list 2>&1)
           
-          if [ -z "$KV_ID" ] || [ "$KV_ID" == "null" ]; then
-            echo "Creating new KV namespace: $KV_NAMESPACE_NAME"
-            KV_CREATE=$(npx wrangler kv:namespace create "$KV_NAMESPACE_NAME" --json)
-            KV_ID=$(echo "$KV_CREATE" | jq -r '.id')
-            echo "✅ KV Namespace created: $KV_ID"
-          else
+          # Check if KV namespace exists
+          if echo "$KV_LIST" | grep -q "$KV_NAMESPACE_NAME"; then
+            # Extract ID from the list output
+            KV_ID=$(echo "$KV_LIST" | grep "$KV_NAMESPACE_NAME" | grep -oP 'id\s*=\s*"\K[^"]+' || echo "$KV_LIST" | grep "$KV_NAMESPACE_NAME" | grep -oP '[a-f0-9]{32}' | head -n 1)
             echo "✅ KV Namespace already exists: $KV_ID"
+          else
+            echo "Creating new KV namespace: $KV_NAMESPACE_NAME"
+            KV_OUTPUT=$(npx wrangler kv:namespace create "$KV_NAMESPACE_NAME" 2>&1)
+            echo "$KV_OUTPUT"
+            
+            # Extract ID from output
+            KV_ID=$(echo "$KV_OUTPUT" | grep -oP 'id\s*=\s*"\K[^"]+' || echo "$KV_OUTPUT" | grep -oP '[a-f0-9]{32}' | head -n 1)
+            
+            if [ -z "$KV_ID" ]; then
+              echo "❌ Failed to extract KV namespace ID"
+              echo "Output was: $KV_OUTPUT"
+              exit 1
+            fi
+            
+            echo "✅ KV Namespace created: $KV_ID"
           fi
           
           echo "kv_namespace_id=$KV_ID" >> $GITHUB_OUTPUT
