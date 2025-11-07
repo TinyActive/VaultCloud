@@ -78,7 +78,7 @@ jobs:
           
           # Check and create KV Namespace
           echo "🗄️ Checking KV Namespace..."
-          KV_LIST=$(npx wrangler kv:namespace list 2>&1 || echo "")
+          KV_LIST=$(npx wrangler kv namespace list 2>&1 || echo "")
           echo "Debug - KV List output:"
           echo "$KV_LIST"
           
@@ -100,7 +100,7 @@ jobs:
           # Create KV namespace if not found or ID extraction failed
           if [ -z "$KV_ID" ] || [ "$KV_ID" == "null" ]; then
             echo "Creating new KV namespace: $KV_NAMESPACE_NAME"
-            KV_OUTPUT=$(npx wrangler kv:namespace create "$KV_NAMESPACE_NAME" 2>&1)
+            KV_OUTPUT=$(npx wrangler kv namespace create "$KV_NAMESPACE_NAME" 2>&1)
             echo "$KV_OUTPUT"
             
             # Try multiple patterns to extract ID
@@ -113,7 +113,7 @@ jobs:
               echo "❌ Failed to extract KV namespace ID"
               echo "Output was: $KV_OUTPUT"
               echo "⚠️ You may need to create KV namespace manually and update wrangler.toml"
-              echo "⚠️ Command: wrangler kv:namespace create $KV_NAMESPACE_NAME"
+              echo "⚠️ Command: wrangler kv namespace create $KV_NAMESPACE_NAME"
               # Use a placeholder to continue
               KV_ID="MANUAL_SETUP_REQUIRED"
             else
