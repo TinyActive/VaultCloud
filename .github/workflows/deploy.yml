@@ -378,6 +378,12 @@ jobs:
             WORKER_URL="https://vaultcloud-api.steep-morning-8706.workers.dev"
           fi
           
+          # Add /api suffix if not present
+          if [[ ! "$WORKER_URL" =~ /api$ ]]; then
+            WORKER_URL="${WORKER_URL}/api"
+            echo "✅ Added /api suffix: $WORKER_URL"
+          fi
+          
           export VITE_API_URL="$WORKER_URL"
           echo "API URL: $VITE_API_URL"
           
