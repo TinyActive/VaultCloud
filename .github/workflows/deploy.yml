@@ -293,6 +293,49 @@ jobs:
           npm run build
           echo "✅ Build complete"
 
+      - name: Create Pages Project if needed
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "📄 Checking if Pages project exists..."
+          
+          # Check if project exists using wrangler
+          PROJECT_CHECK=$(npx wrangler pages project list 2>&1 || echo "")
+          
+          if echo "$PROJECT_CHECK" | grep -q "$PAGES_PROJECT_NAME"; then
+            echo "✅ Pages project already exists"
+          else
+            echo "Creating Pages project: $PAGES_PROJECT_NAME"
+            
+            # Create project using wrangler
+            npx wrangler pages project create "$PAGES_PROJECT_NAME" --production-branch=main || {
+              echo "⚠️ Project creation via wrangler failed, will try via API"
+              
+              # Fallback: Create via Cloudflare API
+              CREATE_RESPONSE=$(curl -s -X POST \
+                "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects" \
+                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data "{
+                  \"name\": \"$PAGES_PROJECT_NAME\",
+                  \"production_branch\": \"main\",
+                  \"build_config\": {
+                    \"build_command\": \"npm run build\",
+                    \"destination_dir\": \"dist\",
+                    \"root_dir\": \"/\"
+                  }
+                }")
+              
+              if echo "$CREATE_RESPONSE" | grep -q '"success":true'; then
+                echo "✅ Pages project created via API"
+              else
+                echo "⚠️ Could not create project, but Pages action may create it automatically"
+                echo "Response: $CREATE_RESPONSE"
+              fi
+            }
+          fi
+
       - name: Publish to Cloudflare Pages
         id: deploy-pages
         uses: cloudflare/pages-action@v1
