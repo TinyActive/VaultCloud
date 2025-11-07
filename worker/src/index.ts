@@ -67,6 +67,20 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }
 
     try {
+        // WebAuthn well-known endpoint for RP ID verification
+        if (path === '/.well-known/webauthn' && method === 'GET') {
+            const hostname = url.hostname;
+            return new Response(JSON.stringify({
+                origins: [`https://${hostname}`]
+            }), {
+                status: 200,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                },
+            });
+        }
+
         // Public routes (no auth required)
         if (path === '/api/auth/login' && method === 'POST') {
             return await handleLogin(request, env);
