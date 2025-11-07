@@ -69,9 +69,18 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     try {
         // WebAuthn well-known endpoint for RP ID verification
         if (path === '/.well-known/webauthn' && method === 'GET') {
-            const hostname = url.hostname;
+            // Get the origin from header (frontend domain)
+            const origin = request.headers.get('Origin') || request.headers.get('Referer');
+            let hostname = url.hostname;
+            
+            if (origin) {
+                try {
+                    hostname = new URL(origin).hostname;
+                } catch {}
+            }
+            
             return new Response(JSON.stringify({
-                origins: [`https://${hostname}`]
+                origins: [`https://${hostname}`, `http://localhost:5173`, `http://localhost:8788`]
             }), {
                 status: 200,
                 headers: {

@@ -19,6 +19,33 @@ interface FidoCredential {
 }
 
 /**
+ * Extract RP ID from request - uses frontend domain (Origin/Referer header)
+ * This ensures WebAuthn works correctly when frontend and API are on different domains
+ */
+function getRpId(request: Request): string {
+    // Try to get frontend domain from Origin or Referer header
+    const origin = request.headers.get('Origin') || request.headers.get('Referer');
+    let rpId: string;
+    
+    if (origin) {
+        try {
+            rpId = new URL(origin).hostname;
+        } catch {
+            rpId = new URL(request.url).hostname;
+        }
+    } else {
+        rpId = new URL(request.url).hostname;
+    }
+    
+    // Normalize localhost variations
+    if (rpId === '127.0.0.1' || rpId === '[::1]') {
+        rpId = 'localhost';
+    }
+    
+    return rpId;
+}
+
+/**
  * Generate registration challenge for WebAuthn
  */
 export async function handleRegisterChallenge(request: Request, env: Env, userId: string): Promise<Response> {
@@ -50,14 +77,8 @@ export async function handleRegisterChallenge(request: Request, env: Env, userId
             { expirationTtl: 300 } // 5 minutes
         );
 
-        // Get RP ID - handle localhost properly
-        const url = new URL(request.url);
-        let rpId = url.hostname;
-        
-        // Normalize localhost variations
-        if (rpId === '127.0.0.1' || rpId === '[::1]') {
-            rpId = 'localhost';
-        }
+        // Get RP ID from frontend domain
+        const rpId = getRpId(request);
         
         // Return WebAuthn registration options
         return Response.json<ApiResponse>({
@@ -224,14 +245,8 @@ export async function handleAuthenticationChallenge(request: Request, env: Env):
             { expirationTtl: 300 }
         );
 
-        // Get RP ID - handle localhost properly
-        const url = new URL(request.url);
-        let rpId = url.hostname;
-        
-        // Normalize localhost variations
-        if (rpId === '127.0.0.1' || rpId === '[::1]') {
-            rpId = 'localhost';
-        }
+        // Get RP ID from frontend domain
+        const rpId = getRpId(request);
         
         // Return authentication options
         return Response.json<ApiResponse>({
