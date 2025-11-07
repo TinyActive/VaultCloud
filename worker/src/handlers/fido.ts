@@ -50,6 +50,15 @@ export async function handleRegisterChallenge(request: Request, env: Env, userId
             { expirationTtl: 300 } // 5 minutes
         );
 
+        // Get RP ID - handle localhost properly
+        const url = new URL(request.url);
+        let rpId = url.hostname;
+        
+        // Normalize localhost variations
+        if (rpId === '127.0.0.1' || rpId === '[::1]') {
+            rpId = 'localhost';
+        }
+        
         // Return WebAuthn registration options
         return Response.json<ApiResponse>({
             success: true,
@@ -58,7 +67,7 @@ export async function handleRegisterChallenge(request: Request, env: Env, userId
                 challengeId,
                 rp: {
                     name: 'VaultCloud',
-                    id: new URL(request.url).hostname,
+                    id: rpId,
                 },
                 user: {
                     id: bufferToBase64(textToBuffer(user.id)),
@@ -215,13 +224,22 @@ export async function handleAuthenticationChallenge(request: Request, env: Env):
             { expirationTtl: 300 }
         );
 
+        // Get RP ID - handle localhost properly
+        const url = new URL(request.url);
+        let rpId = url.hostname;
+        
+        // Normalize localhost variations
+        if (rpId === '127.0.0.1' || rpId === '[::1]') {
+            rpId = 'localhost';
+        }
+        
         // Return authentication options
         return Response.json<ApiResponse>({
             success: true,
             data: {
                 challenge: bufferToBase64(challenge),
                 challengeId,
-                rpId: new URL(request.url).hostname,
+                rpId: rpId,
                 allowCredentials: credentials.results.map((cred: any) => ({
                     type: 'public-key',
                     id: cred.credential_id,
