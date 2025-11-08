@@ -42,18 +42,13 @@ const AuthView: React.FC = () => {
             // Set email from URL parameter if provided
             if (emailParam) {
                 setEmail(emailParam);
-                setShouldAutoFido(true);
             }
+            // Auto-trigger FIDO login after a short delay
+            setTimeout(() => {
+                setAuthMethod('fido');
+            }, 100);
         }
     }, [currentUser, logout]);
-    
-    // Auto-trigger FIDO after email is set
-    useEffect(() => {
-        if (shouldAutoFido && email) {
-            setShouldAutoFido(false);
-            setAuthMethod('fido');
-        }
-    }, [shouldAutoFido, email]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
