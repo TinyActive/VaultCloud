@@ -28,10 +28,18 @@ function getRpId(request: Request): string {
     let rpId: string;
     
     if (origin) {
-        try {
-            rpId = new URL(origin).hostname;
-        } catch {
+        // Check if origin is from browser extension
+        if (origin.startsWith('chrome-extension://') || 
+            origin.startsWith('moz-extension://') || 
+            origin.startsWith('safari-extension://')) {
+            // For extensions, use the API domain as RP ID
             rpId = new URL(request.url).hostname;
+        } else {
+            try {
+                rpId = new URL(origin).hostname;
+            } catch {
+                rpId = new URL(request.url).hostname;
+            }
         }
     } else {
         rpId = new URL(request.url).hostname;

@@ -1,0 +1,19 @@
+<!-- Simple SVG icon that can be converted to PNG -->
+<svg width="128" height="128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="128" height="128" rx="24" fill="#4f46e5"/>
+  
+  <!-- Lock Icon -->
+  <g transform="translate(32, 32)">
+    <!-- Lock body -->
+    <rect x="16" y="28" width="32" height="36" rx="4" fill="white"/>
+    
+    <!-- Lock shackle -->
+    <path d="M 20 28 L 20 20 Q 20 12 32 12 Q 44 12 44 20 L 44 28" 
+          fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/>
+    
+    <!-- Keyhole -->
+    <circle cx="32" cy="42" r="4" fill="#4f46e5"/>
+    <rect x="30" y="42" width="4" height="8" fill="#4f46e5"/>
+  </g>
+</svg>
