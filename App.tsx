@@ -114,9 +114,7 @@ const AppContent: React.FC = () => {
                         <Route path="/" element={
                             currentUser ? <Navigate to="/dashboard" replace /> : <LandingView />
                         } />
-                        <Route path="/auth" element={
-                            currentUser ? <Navigate to="/dashboard" replace /> : <AuthView />
-                        } />
+                        <Route path="/auth" element={<AuthView />} />
                         <Route path="/verify-email" element={<VerifyEmailView />} />
                         <Route path="/dashboard/*" element={
                             currentUser ? <DashboardView currentUser={currentUser} /> : <Navigate to="/auth" replace />

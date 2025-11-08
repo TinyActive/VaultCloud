@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '../components/Button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/Card';
 import { LockIcon, ShieldCheckIcon, ShareIcon, KeyRoundIcon, TwitterIcon, GithubIcon, LinkedinIcon, QuoteIcon, PlusIcon, UserPlusIcon, FilePlusIcon, GlobeIcon } from '../constants';
@@ -9,6 +9,16 @@ import { useI18n } from '../i18n';
 const LandingView: React.FC = () => {
     const { t } = useI18n();
     const navigate = useNavigate();
+    const location = useLocation();
+    
+    // Check if FIDO login is requested
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        if (params.get('fido_login') === '1') {
+            // Redirect to auth with query params
+            navigate('/auth' + location.search);
+        }
+    }, [location, navigate]);
     
     const handleNavigateToAuth = () => {
         navigate('/auth');
