@@ -1,6 +1,9 @@
 # VaultCloud Chrome Extension
 
+> ⚠️ WARNING: This extension is not yet fully functional and is currently under development
+
 A secure browser extension for VaultCloud password manager with autofill and auto-save capabilities.
+
 
 ## Features
 

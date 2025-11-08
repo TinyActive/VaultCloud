@@ -78,6 +78,24 @@ A modern, secure password and account management application built with:
 5. Build frontend: `npm run build`
 6. Deploy to Cloudflare Pages via dashboard or GitHub Actions
 
+## Roadmap — Desktop & Mobile App Development
+
+Goal: Expand VaultCloud into native Desktop and Mobile apps while ensuring full support for major browsers and specified operating systems.
+
+1. Overview
+- Support in parallel: Web (PWA), Desktop (Windows, macOS, Linux), Mobile (iOS, Android).
+- Priorities: security, secure synchronization, feature parity across platforms, offline experience.
+
+2. Platform & browser support
+- Desktop
+  - Windows: Windows 10+ (MSI/EXE installer, auto-update)
+  - macOS: macOS 10.15+/11+ (dmg / signed .pkg, notarization)
+  - Linux: Ubuntu/Debian/Fedora/* (AppImage, .deb, .rpm, Snap/Flatpak)
+  - Web/PWA browsers: Chrome, Edge (Chromium), Firefox, Safari — support the latest 2 major versions.
+- Mobile
+  - Android: Android 8+ (APK / Play Store)
+  - iOS: iOS 14+ (App Store, TestFlight)
+  - Mobile browsers: Chrome for Android, Safari on iOS, Samsung Browser, Firefox Mobile
 
 ## License
 

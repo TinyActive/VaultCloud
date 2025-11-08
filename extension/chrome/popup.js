@@ -508,14 +508,15 @@ async function handleFidoLogin(event) {
         target: { tabId: newTab.id },
         func: () => {
           const flag = localStorage.getItem('extension_fido_login_success');
-          return flag;
+          const token = localStorage.getItem('vaultcloud-token');
+          return { flag, token };
         }
       });
       
-      const loginFlag = results[0]?.result;
+      const loginData = results[0]?.result;
       
       // If flag exists and is newer than when we started
-      if (loginFlag && parseInt(loginFlag) > startTime) {
+      if (loginData?.flag && parseInt(loginData.flag) > startTime && loginData.token) {
         // Login successful!
         clearInterval(pollInterval);
         
@@ -525,6 +526,12 @@ async function handleFidoLogin(event) {
           func: () => {
             localStorage.removeItem('extension_fido_login_success');
           }
+        });
+        
+        // Save token to extension storage
+        await chrome.runtime.sendMessage({
+          action: 'setToken',
+          token: loginData.token
         });
         
         // Close the tab
