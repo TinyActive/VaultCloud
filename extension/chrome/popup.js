@@ -471,7 +471,7 @@ async function handleFidoLogin(event) {
   
   // Open frontend for FIDO authentication with email pre-filled
   const loginUrl = `${frontendUrl}?fido_login=1&email=${encodeURIComponent(email)}`;
-  await chrome.tabs.create({ url: loginUrl });
+  const newTab = await chrome.tabs.create({ url: loginUrl });
   
   // Show instructions
   showError(errorDiv, 'Complete FIDO login in the opened tab. Extension will auto-detect login.');
@@ -484,25 +484,58 @@ async function handleFidoLogin(event) {
   
   let attempts = 0;
   const maxAttempts = 60; // 60 seconds
+  const startTime = Date.now();
   
   const pollInterval = setInterval(async () => {
     attempts++;
     
     try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'apiRequest',
-        method: 'GET',
-        endpoint: '/api/users/me',
+      // Check if tab still exists
+      const tab = await chrome.tabs.get(newTab.id).catch(() => null);
+      if (!tab) {
+        // Tab closed, stop polling
+        clearInterval(pollInterval);
+        showError(errorDiv, 'Login cancelled - tab was closed.');
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🔑 Use Security Key';
+        }
+        return;
+      }
+      
+      // Inject script to check localStorage in the web app tab
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: newTab.id },
+        func: () => {
+          const flag = localStorage.getItem('extension_fido_login_success');
+          return flag;
+        }
       });
       
-      if (response.success) {
+      const loginFlag = results[0]?.result;
+      
+      // If flag exists and is newer than when we started
+      if (loginFlag && parseInt(loginFlag) > startTime) {
         // Login successful!
         clearInterval(pollInterval);
+        
+        // Clear the flag
+        await chrome.scripting.executeScript({
+          target: { tabId: newTab.id },
+          func: () => {
+            localStorage.removeItem('extension_fido_login_success');
+          }
+        });
+        
+        // Close the tab
+        await chrome.tabs.remove(newTab.id);
+        
+        // Reload extension state
         await loadState();
         render();
       }
     } catch (error) {
-      // Not logged in yet, continue polling
+      // Tab might not be ready yet, continue polling
     }
     
     if (attempts >= maxAttempts) {
