@@ -109,6 +109,10 @@ const AuthView: React.FC = () => {
         try {
             const response = await fidoService.authenticateWithSecurityKey(email);
             setCurrentUser(response.user);
+            
+            // Set flag for extension to detect login success
+            localStorage.setItem('extension_fido_login_success', Date.now().toString());
+            
             navigate('/dashboard');
         } catch (err) {
             console.error('FIDO login error:', err);
