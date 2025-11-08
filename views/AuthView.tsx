@@ -26,6 +26,20 @@ const AuthView: React.FC = () => {
     useEffect(() => {
         // Check FIDO support on component mount
         setFidoSupported(fidoService.isSupported());
+        
+        // Check for URL parameters (from extension)
+        const params = new URLSearchParams(window.location.search);
+        const fidoLogin = params.get('fido_login');
+        const emailParam = params.get('email');
+        
+        if (fidoLogin === '1') {
+            // Set email from URL parameter if provided
+            if (emailParam) {
+                setEmail(emailParam);
+            }
+            // Auto-trigger FIDO login
+            setAuthMethod('fido');
+        }
     }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
