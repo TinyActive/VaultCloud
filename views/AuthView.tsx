@@ -16,12 +16,13 @@ const AuthView: React.FC = () => {
     const navigate = useNavigate();
     const { setCurrentUser, currentUser, logout } = useAuth();
     const [authMethod, setAuthMethod] = useState<AuthMethod>('password');
-    const [email, setEmail] = useState('admin@vaultcloud.dev');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fidoSupported, setFidoSupported] = useState(true);
+    const [shouldAutoFido, setShouldAutoFido] = useState(false);
     
     useEffect(() => {
         // Check FIDO support on component mount
@@ -41,13 +42,18 @@ const AuthView: React.FC = () => {
             // Set email from URL parameter if provided
             if (emailParam) {
                 setEmail(emailParam);
+                setShouldAutoFido(true);
             }
-            // Auto-trigger FIDO login after a short delay
-            setTimeout(() => {
-                setAuthMethod('fido');
-            }, 100);
         }
     }, [currentUser, logout]);
+    
+    // Auto-trigger FIDO after email is set
+    useEffect(() => {
+        if (shouldAutoFido && email) {
+            setShouldAutoFido(false);
+            setAuthMethod('fido');
+        }
+    }, [shouldAutoFido, email]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
