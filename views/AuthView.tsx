@@ -16,12 +16,13 @@ const AuthView: React.FC = () => {
     const navigate = useNavigate();
     const { setCurrentUser, currentUser, logout } = useAuth();
     const [authMethod, setAuthMethod] = useState<AuthMethod>('password');
-    const [email, setEmail] = useState('admin@vaultcloud.dev');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fidoSupported, setFidoSupported] = useState(true);
+    const [shouldAutoFido, setShouldAutoFido] = useState(false);
     
     useEffect(() => {
         // Check FIDO support on component mount
