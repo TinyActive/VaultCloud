@@ -14,7 +14,7 @@ type AuthMethod = 'password' | 'register' | 'fido' | 'magicLink' | 'magicLinkSen
 const AuthView: React.FC = () => {
     const { t } = useI18n();
     const navigate = useNavigate();
-    const { setCurrentUser } = useAuth();
+    const { setCurrentUser, currentUser, logout } = useAuth();
     const [authMethod, setAuthMethod] = useState<AuthMethod>('password');
     const [email, setEmail] = useState('admin@vaultcloud.dev');
     const [password, setPassword] = useState('');
@@ -33,14 +33,21 @@ const AuthView: React.FC = () => {
         const emailParam = params.get('email');
         
         if (fidoLogin === '1') {
+            // If user is already logged in, log them out first
+            if (currentUser) {
+                logout();
+            }
+            
             // Set email from URL parameter if provided
             if (emailParam) {
                 setEmail(emailParam);
             }
-            // Auto-trigger FIDO login
-            setAuthMethod('fido');
+            // Auto-trigger FIDO login after a short delay
+            setTimeout(() => {
+                setAuthMethod('fido');
+            }, 100);
         }
-    }, []);
+    }, [currentUser, logout]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();

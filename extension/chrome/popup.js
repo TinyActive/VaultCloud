@@ -34,6 +34,12 @@ async function loadState() {
     if (response.success) {
       state.session = response.session;
       
+      // Get frontend URL
+      const { frontendUrl } = await chrome.storage.local.get('frontendUrl');
+      if (frontendUrl) {
+        state.session.frontendUrl = frontendUrl;
+      }
+      
       if (state.session.token) {
         // Load entries
         await loadEntries();
@@ -91,17 +97,30 @@ function renderSetup() {
     <div class="section">
       <div class="section-title">🚀 Welcome to VaultCloud</div>
       <p style="font-size: 13px; color: #6b7280; margin-bottom: 16px;">
-        Please enter your VaultCloud backend URL to get started.
+        Please enter your VaultCloud URLs to get started.
       </p>
       <div class="form-group">
-        <label class="form-label">Backend URL</label>
+        <label class="form-label">Backend API URL (Cloudflare Workers)</label>
         <input
           type="url"
           class="form-input"
           id="api-url-input"
-          placeholder="https://your-api.example.com"
+          placeholder="https://your-api.workers.dev"
           value="${state.session?.apiUrl || ''}"
         />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Frontend URL (Cloudflare Pages)</label>
+        <input
+          type="url"
+          class="form-input"
+          id="frontend-url-input"
+          placeholder="https://your-app.pages.dev"
+          value="${state.session?.frontendUrl || ''}"
+        />
+        <p style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+          Required for FIDO/WebAuthn security key authentication
+        </p>
       </div>
       <div id="setup-error"></div>
       <button class="btn btn-primary" id="btn-setup-save">
@@ -340,31 +359,50 @@ function attachEventListeners() {
       }
     });
   }
+
+  const frontendUrlInput = document.getElementById('frontend-url-input');
+  if (frontendUrlInput) {
+    frontendUrlInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        handleSetupSave(e);
+      }
+    });
+  }
 }
 
 // Event handlers
 async function handleSetupSave(event) {
-  const input = document.getElementById('api-url-input');
+  const apiInput = document.getElementById('api-url-input');
+  const frontendInput = document.getElementById('frontend-url-input');
   const errorDiv = document.getElementById('setup-error');
   const btn = event ? event.target : document.getElementById('btn-setup-save');
-  const url = input.value.trim();
+  const apiUrl = apiInput.value.trim();
+  const frontendUrl = frontendInput.value.trim();
 
-  if (!url) {
-    showError(errorDiv, 'Please enter a valid URL');
+  if (!apiUrl) {
+    showError(errorDiv, 'Please enter Backend API URL');
+    return;
+  }
+
+  if (!frontendUrl) {
+    showError(errorDiv, 'Please enter Frontend URL');
     return;
   }
 
   try {
-    // Validate URL
-    new URL(url);
+    // Validate URLs
+    new URL(apiUrl);
+    new URL(frontendUrl);
 
     // Save to storage
     await chrome.runtime.sendMessage({
       action: 'setApiUrl',
-      url: url,
+      url: apiUrl,
     });
+    
+    await chrome.storage.local.set({ frontendUrl });
 
-    state.session = { apiUrl: url };
+    state.session = { apiUrl, frontendUrl };
     render();
   } catch (error) {
     showError(errorDiv, 'Invalid URL format');
@@ -419,13 +457,20 @@ async function handleFidoLogin(event) {
     return;
   }
 
-<<<<<<< HEAD
   // WebAuthn security restriction: credentials registered on the actual domain
-  // cannot be used from chrome-extension:// origin. Open the web app instead.
-  const apiUrl = state.session.apiUrl;
+  // cannot be used from chrome-extension:// origin. Open the frontend instead.
+  const frontendUrl = state.session.frontendUrl;
   
-  // Open web app for FIDO authentication with email pre-filled
-  const loginUrl = `${apiUrl}?fido_login=1&email=${encodeURIComponent(email)}`;
+  if (!frontendUrl) {
+    showError(errorDiv, 'Frontend URL not configured. Please update settings.');
+    if (btn) {
+      btn.disabled = false;
+    }
+    return;
+  }
+  
+  // Open frontend for FIDO authentication with email pre-filled
+  const loginUrl = `${frontendUrl}?fido_login=1&email=${encodeURIComponent(email)}`;
   await chrome.tabs.create({ url: loginUrl });
   
   // Show instructions
@@ -469,105 +514,6 @@ async function handleFidoLogin(event) {
       }
     }
   }, 1000);
-=======
-  try {
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Requesting challenge...';
-    }
-
-    const challengeResponse = await chrome.runtime.sendMessage({
-      action: 'getFidoChallenge',
-      email,
-    });
-
-    if (!challengeResponse.success) {
-      throw new Error(challengeResponse.error || 'Failed to get challenge');
-    }
-
-    const { challenge, challengeId, rpId, allowCredentials } = challengeResponse.data;
-
-    if (btn) {
-      btn.textContent = 'Waiting for security key...';
-    }
-
-    const base64ToBuffer = (base64) => {
-      const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-      const base64Padded = base64.replace(/-/g, '+').replace(/_/g, '/') + padding;
-      const binary = atob(base64Padded);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return bytes.buffer;
-    };
-
-    const options = {
-      challenge: base64ToBuffer(challenge),
-      rpId: rpId,
-      allowCredentials: allowCredentials.map(cred => ({
-        type: cred.type,
-        id: base64ToBuffer(cred.id),
-        transports: cred.transports,
-      })),
-      timeout: 60000,
-      userVerification: 'preferred',
-    };
-
-    const assertion = await navigator.credentials.get({
-      publicKey: options,
-    });
-
-    if (!assertion) {
-      throw new Error('Authentication failed');
-    }
-
-    if (btn) {
-      btn.textContent = 'Authenticating...';
-    }
-
-    const bufferToBase64 = (buffer) => {
-      const bytes = new Uint8Array(buffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-    };
-
-    const response = assertion.response;
-    const assertionData = {
-      id: assertion.id,
-      rawId: bufferToBase64(assertion.rawId),
-      type: assertion.type,
-      response: {
-        clientDataJSON: bufferToBase64(response.clientDataJSON),
-        authenticatorData: bufferToBase64(response.authenticatorData),
-        signature: bufferToBase64(response.signature),
-        userHandle: response.userHandle ? bufferToBase64(response.userHandle) : null,
-      },
-    };
-
-    const loginResponse = await chrome.runtime.sendMessage({
-      action: 'loginWithFido',
-      challengeId,
-      credential: assertionData,
-    });
-
-    if (loginResponse.success) {
-      await loadState();
-      render();
-    } else {
-      throw new Error(loginResponse.error || 'Authentication failed');
-    }
-  } catch (error) {
-    showError(errorDiv, error.message || 'Failed to authenticate with security key');
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '🔑 Use Security Key';
-    }
-  }
->>>>>>> origin/main
 }
 
 async function handleLogout() {
@@ -582,7 +528,10 @@ async function handleLogout() {
 }
 
 function handleChangeBackend() {
-  state.session = null;
+  // Reset session but keep URLs for easy editing
+  const apiUrl = state.session?.apiUrl || '';
+  const frontendUrl = state.session?.frontendUrl || '';
+  state.session = { apiUrl, frontendUrl };
   render();
 }
 
